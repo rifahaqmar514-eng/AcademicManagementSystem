@@ -1,11 +1,12 @@
-"""Konfigurasi aplikasi. Nilai dibaca dari file .env (jangan commit .env)."""
+"""Konfigurasi aplikasi dari environment lokal proyek."""
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Baca .env dari folder proyek, apa pun folder tempat program dijalankan.
-load_dotenv(Path(__file__).resolve().parent / ".env")
+
+# Pastikan file .env proyek dipakai, termasuk bila environment dari IDE berbeda.
+load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),

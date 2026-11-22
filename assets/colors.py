@@ -5,30 +5,30 @@ kode yang sudah memakainya tidak rusak.
 """
 
 # --- warna utama ---
-PRIMARY_COLOR = "#1D4ED8"
-PRIMARY_DARK = "#1E3A8A"
-PRIMARY_HOVER = "#1E40AF"
-PRIMARY_LIGHT = "#DBEAFE"
+PRIMARY_COLOR = "#8C624A"   # Cokelat mocha lembut (tombol & aksen utama)
+PRIMARY_DARK = "#6F4C38"    # Cokelat hangat untuk status tekan/aktif
+PRIMARY_HOVER = "#9E7258"   # Lebih cerah halus saat hover
+PRIMARY_LIGHT = "#F2EAE1"   # Krem susu lembut untuk highlight/tab aktif
 
 # --- latar dan teks ---
-BG_COLOR = "#F1F5F9"
-CARD_BG = "#FFFFFF"
-TEXT_DARK = "#0F172A"
-TEXT_MUTED = "#64748B"
-BORDER_COLOR = "#CBD5E1"
-TAB_IDLE_BG = "#E2E8F0"
+BG_COLOR = "#F8F5F0"        # Latar utama putih gading/krem sangat lembut
+CARD_BG = "#FCFBF8"         # Latar kartu/form terang dan bersih
+TEXT_DARK = "#3A2B22"       # Cokelat tua lembut (tidak terlalu tajam)
+TEXT_MUTED = "#8A7A70"      # Cokelat keabu-abuan halus untuk teks sekunder
+BORDER_COLOR = "#E3D9CE"    # Garis batas tipis dan kalem
+TAB_IDLE_BG = "#EFE8DF"     # Tab tidak aktif yang lembut
 
 # --- status ---
-DANGER_COLOR = "#B91C1C"
-DANGER_BG = "#FEE2E2"
-SUCCESS_COLOR = "#15803D"
-SUCCESS_BG = "#DCFCE7"
+DANGER_COLOR = "#B54B4B"    # Merah bata pucat/lembut
+DANGER_BG = "#FBECEC"
+SUCCESS_COLOR = "#4A785C"   # Hijau sage/daun lembut
+SUCCESS_BG = "#ECF4EF"
 
 # --- sidebar ---
-SIDEBAR_BG = "#0F172A"
-SIDEBAR_HOVER = "#1E293B"
-SIDEBAR_ACTIVE = "#2563EB"
-SIDEBAR_TEXT = "#CBD5E1"
+SIDEBAR_BG = "#6E4F3E"      # Cokelat susu/cocoa medium yang lembut
+SIDEBAR_HOVER = "#7E5C49"
+SIDEBAR_ACTIVE = "#9C7660"
+SIDEBAR_TEXT = "#FAF7F2"
 
 # --- font ---
 FONT_FAMILY = "Segoe UI"

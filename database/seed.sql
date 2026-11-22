@@ -23,19 +23,48 @@ INSERT IGNORE INTO skala_nilai (huruf_mutu, bobot_mutu, nilai_min, nilai_max, is
     ('E',  0.00,  0.00,  39.99, FALSE);
 
 -- ---------------------------------------------------------------------
--- 2. Data contoh (fiktif, untuk uji coba dan demo; ganti sesuai kampus)
+-- 2. Jurusan dan program studi kampus
 -- ---------------------------------------------------------------------
 INSERT IGNORE INTO jurusan (kode_jurusan, nama_jurusan) VALUES
+    ('JAK', 'Akuntansi'),
+    ('JAB', 'Administrasi Bisnis'),
+    ('JKM', 'Kemaritiman'),
+    ('JPR', 'Pariwisata'),
     ('JTI', 'Teknologi Informasi'),
-    ('JTE', 'Teknik Elektro');
+    ('JDS', 'Desain'),
+    ('JTK', 'Teknik Kimia'),
+    ('JTS', 'Teknik Sipil'),
+    ('JTE', 'Teknik Elektro'),
+    ('JTM', 'Teknik Mesin');
 
 INSERT IGNORE INTO program_studi (jurusan_id, kode_prodi, nama_prodi, jenjang)
 SELECT j.jurusan_id, t.kode_prodi, t.nama_prodi, t.jenjang
 FROM (
-    SELECT 'JTI' AS kode_jurusan, 'TI' AS kode_prodi, 'Teknik Informatika' AS nama_prodi, 'S1' AS jenjang
-    UNION ALL SELECT 'JTI', 'SI', 'Sistem Informasi',       'S1'
-    UNION ALL SELECT 'JTE', 'TE', 'Teknik Elektro',         'S1'
-    UNION ALL SELECT 'JTE', 'TT', 'Teknik Telekomunikasi',  'D4'
+    SELECT 'JAK' AS kode_jurusan, 'AK-D3' AS kode_prodi, 'Akuntansi' AS nama_prodi, 'D3' AS jenjang
+    UNION ALL SELECT 'JAK', 'AK-AM4', 'Akuntansi Manajerial', 'D4'
+    UNION ALL SELECT 'JAK', 'AK-KP4', 'Keuangan Perbankan', 'D4'
+    UNION ALL SELECT 'JAB', 'AB-MP4', 'Manajemen Pemasaran', 'D4'
+    UNION ALL SELECT 'JAB', 'AB-BD4', 'Bisnis Digital', 'D4'
+    UNION ALL SELECT 'JKM', 'KM-KPNK3', 'KPNK', 'D3'
+    UNION ALL SELECT 'JKM', 'KM-TEK3', 'Teknik', 'D3'
+    UNION ALL SELECT 'JKM', 'KM-NAU3', 'Nautika', 'D3'
+    UNION ALL SELECT 'JPR', 'PR-PAR3', 'Pariwisata', 'D3'
+    UNION ALL SELECT 'JPR', 'PR-UPW4', 'Usaha Perjalanan', 'D4'
+    UNION ALL SELECT 'JTI', 'TI', 'Teknik Informatika', 'D3'
+    UNION ALL SELECT 'JTI', 'TI-TK3', 'Teknik Komputer', 'D3'
+    UNION ALL SELECT 'JTI', 'TI-TIM4', 'Teknik Informatika Multimedia', 'D4'
+    UNION ALL SELECT 'JTI', 'TI-TRK4', 'Teknologi Rekayasa Komputer', 'D4'
+    UNION ALL SELECT 'JDS', 'DS-DP4', 'Desain Produk', 'D4'
+    UNION ALL SELECT 'JDS', 'DS-ARS4', 'Arsitektur', 'D4'
+    UNION ALL SELECT 'JTK', 'TK-POK3', 'Petro & Oleo Kimia', 'D3'
+    UNION ALL SELECT 'JTK', 'TK-TKI4', 'Teknologi Kimia Industri', 'D4'
+    UNION ALL SELECT 'JTS', 'TS-TRGB4', 'Teknologi Rekayasa Konstruksi Bangunan Gedung', 'D4'
+    UNION ALL SELECT 'JTS', 'TS-RJJ4', 'Rekayasa Jalan & Jembatan', 'D4'
+    UNION ALL SELECT 'JTS', 'TS-RKBA4', 'Rekayasa Konstruksi Bangunan Air', 'D4'
+    UNION ALL SELECT 'JTE', 'TE-TL3', 'Teknik Listrik', 'D3'
+    UNION ALL SELECT 'JTE', 'TE-TL4', 'Teknik Listrik', 'D4'
+    UNION ALL SELECT 'JTM', 'TM-PPM3', 'Perawatan & Perbaikan Mesin', 'D3'
+    UNION ALL SELECT 'JTM', 'TM-TMPP4', 'Teknik Mesin Produksi & Perawatan', 'D4'
 ) AS t
 JOIN jurusan j ON j.kode_jurusan = t.kode_jurusan;
 
@@ -57,7 +86,7 @@ SELECT t.nim, p.prodi_id, t.nama, t.jk, t.tgl, t.angkatan
 FROM (
     SELECT '2501001' AS nim, 'Budi Santoso' AS nama, 'L' AS jk, '2006-03-14' AS tgl, 2025 AS angkatan, 'TI' AS prodi
     UNION ALL SELECT '2501002', 'Siti Aminah', 'P', '2006-07-02', 2025, 'TI'
-    UNION ALL SELECT '2502001', 'Andi Wijaya', 'L', '2005-11-21', 2025, 'SI'
+    UNION ALL SELECT '2502001', 'Andi Wijaya', 'L', '2005-11-21', 2025, 'AK-D3'
 ) AS t
 JOIN program_studi p ON p.kode_prodi = t.prodi;
 
