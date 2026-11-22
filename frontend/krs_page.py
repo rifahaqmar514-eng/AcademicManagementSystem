@@ -28,6 +28,8 @@ def tampilkan_krs(parent, user):
 def _halaman_mahasiswa(parent):
     status_label = tk.Label(parent, text="", bg=BG_COLOR, fg=TEXT_DARK, anchor="w")
     status_label.pack(fill="x", pady=(0, 10))
+    sks_label = tk.Label(parent, text="", bg=BG_COLOR, fg=TEXT_DARK, anchor="w")
+    sks_label.pack(fill="x", pady=(0, 10))
 
     section = tk.Frame(parent, bg=BG_COLOR)
     section.pack(fill="both", expand=True)
@@ -69,6 +71,7 @@ def _halaman_mahasiswa(parent):
 
     def muat():
         nonlocal available_rows, summary, window_open
+        pesan_periode = None
         for table in (available, selected):
             for item in table.get_children():
                 table.delete(item)
@@ -78,6 +81,7 @@ def _halaman_mahasiswa(parent):
             available_rows = krs.kelas_tersedia()
         except AppError as err:
             window_open = False
+            pesan_periode = str(err)
             try:
                 summary = krs.ringkasan_saya()
             except (AppError, mysql.connector.Error) as summary_err:
@@ -97,6 +101,11 @@ def _halaman_mahasiswa(parent):
         term = summary["semester"]
         current = summary["krs"]
         state = current["status"] if current else "Belum dibuat"
+        if pesan_periode:
+            state += f" ({pesan_periode})"
+        sks_label.config(
+            text=f"SKS dipilih: {summary['sks_diambil']} dari batas {summary['batas_sks']} SKS"
+        )
         status_label.config(
             text=f"Semester {term['kode_semester']} · Status KRS: {state}"
             + (f" · Catatan PA: {current['catatan_pa']}" if current and current["catatan_pa"] else "")
@@ -121,6 +130,11 @@ def _halaman_mahasiswa(parent):
         add_button.config(state="normal" if boleh_ubah else "disabled")
         remove_button.config(state="normal" if boleh_ubah else "disabled")
         submit_button.config(state="normal" if boleh_ubah and current else "disabled")
+        revise_button.config(
+            state="normal"
+            if window_open and current and current["status"] == "Ditolak"
+            else "disabled"
+        )
 
     def ambil():
         picked = available.selection()
@@ -160,8 +174,22 @@ def _halaman_mahasiswa(parent):
         messagebox.showinfo("KRS", "KRS berhasil diajukan ke dosen PA.", parent=parent)
         muat()
 
+    def revisi():
+        if not messagebox.askyesno(
+            "Revisi KRS", "Buka kembali KRS yang ditolak untuk diperbaiki?", parent=parent
+        ):
+            return
+        try:
+            krs.revisi()
+        except (AppError, mysql.connector.Error) as err:
+            messagebox.showerror("Revisi KRS", str(err), parent=parent)
+            return
+        muat()
+
     add_button = ttk.Button(left, text="Tambahkan ke KRS", command=ambil)
     add_button.pack(anchor="w")
+    revise_button = ttk.Button(left, text="Revisi KRS Ditolak", command=revisi, state="disabled")
+    revise_button.pack(anchor="w", pady=(6, 0))
     remove_button = ttk.Button(right, text="Hapus dari KRS", command=lepas)
     remove_button.pack(side="left")
     submit_button = ttk.Button(right, text="Ajukan ke Dosen PA", command=ajukan)

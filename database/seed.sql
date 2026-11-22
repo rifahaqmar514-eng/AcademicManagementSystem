@@ -1,96 +1,90 @@
 -- =====================================================================
--- seed.sql : Data awal SIAKAD
--- Jalankan SETELAH schema.sql. Aman dijalankan berulang kali.
+-- seed.sql : Data awal dan data contoh. Jalankan SETELAH schema.sql.
+-- Aman dijalankan ulang (baris yang sudah ada dilewati).
 -- Akun admin TIDAK dibuat di sini; gunakan: python database/create_admin.py
+-- Mahasiswa tidak punya password: login memakai Nama + NIM.
 -- =====================================================================
 
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE siakad;
 
--- ---------------------------------------------------------------------
--- 1. Role
--- ---------------------------------------------------------------------
-INSERT INTO roles (nama_role) VALUES
-    ('admin'),
-    ('dosen'),
-    ('mahasiswa')
-ON DUPLICATE KEY UPDATE nama_role = nama_role;
+INSERT IGNORE INTO roles (nama_role) VALUES ('admin'), ('dosen'), ('mahasiswa');
 
 -- ---------------------------------------------------------------------
--- 2. Skala nilai (huruf mutu, bobot, rentang nilai angka)
---    Sesuaikan dengan aturan kampus. D dianggap lulus; ubah is_lulus bila perlu.
+-- 1. Skala nilai (sesuai asumsi: D dianggap lulus, E tidak lulus)
 -- ---------------------------------------------------------------------
-INSERT INTO skala_nilai (huruf_mutu, bobot_mutu, nilai_min, nilai_max, is_lulus) VALUES
+INSERT IGNORE INTO skala_nilai (huruf_mutu, bobot_mutu, nilai_min, nilai_max, is_lulus) VALUES
     ('A',  4.00, 85.00, 100.00, TRUE),
     ('AB', 3.50, 80.00,  84.99, TRUE),
     ('B',  3.00, 70.00,  79.99, TRUE),
     ('BC', 2.50, 65.00,  69.99, TRUE),
     ('C',  2.00, 55.00,  64.99, TRUE),
     ('D',  1.00, 40.00,  54.99, TRUE),
-    ('E',  0.00,  0.00,  39.99, FALSE)
-ON DUPLICATE KEY UPDATE
-    bobot_mutu = VALUES(bobot_mutu),
-    nilai_min  = VALUES(nilai_min),
-    nilai_max  = VALUES(nilai_max),
-    is_lulus   = VALUES(is_lulus);
+    ('E',  0.00,  0.00,  39.99, FALSE);
 
 -- ---------------------------------------------------------------------
--- 3. Aturan batas SKS berdasarkan IPS semester sebelumnya
---    Mahasiswa semester 1 (belum punya IPS) memakai batas default di backend.
---    Hanya diisi jika tabel masih kosong, agar tidak terduplikasi.
+-- 2. Data contoh (fiktif, untuk uji coba dan demo; ganti sesuai kampus)
 -- ---------------------------------------------------------------------
-INSERT INTO aturan_batas_sks (ips_min, ips_max, sks_maks)
-SELECT t.ips_min, t.ips_max, t.sks_maks
+INSERT IGNORE INTO jurusan (kode_jurusan, nama_jurusan) VALUES
+    ('JTI', 'Teknologi Informasi'),
+    ('JTE', 'Teknik Elektro');
+
+INSERT IGNORE INTO program_studi (jurusan_id, kode_prodi, nama_prodi, jenjang)
+SELECT j.jurusan_id, t.kode_prodi, t.nama_prodi, t.jenjang
 FROM (
-    SELECT 3.00 AS ips_min, 4.00 AS ips_max, 24 AS sks_maks
-    UNION ALL SELECT 2.50, 2.99, 21
-    UNION ALL SELECT 2.00, 2.49, 18
-    UNION ALL SELECT 0.00, 1.99, 15
+    SELECT 'JTI' AS kode_jurusan, 'TI' AS kode_prodi, 'Teknik Informatika' AS nama_prodi, 'S1' AS jenjang
+    UNION ALL SELECT 'JTI', 'SI', 'Sistem Informasi',       'S1'
+    UNION ALL SELECT 'JTE', 'TE', 'Teknik Elektro',         'S1'
+    UNION ALL SELECT 'JTE', 'TT', 'Teknik Telekomunikasi',  'D4'
 ) AS t
-WHERE NOT EXISTS (SELECT 1 FROM aturan_batas_sks);
+JOIN jurusan j ON j.kode_jurusan = t.kode_jurusan;
+
+INSERT IGNORE INTO semester_akademik (kode_semester, tahun_akademik, jenis) VALUES
+    ('20251', '2025/2026', 'Ganjil'),
+    ('20252', '2025/2026', 'Genap'),
+    ('20261', '2026/2027', 'Ganjil');
+
+INSERT IGNORE INTO mata_kuliah (kode_mk, nama_mk, sks) VALUES
+    ('IF101', 'Algoritma dan Pemrograman', 3),
+    ('IF102', 'Basis Data',                3),
+    ('IF103', 'Matematika Diskrit',        3),
+    ('IF104', 'Struktur Data',             3),
+    ('IF105', 'Jaringan Komputer',         2),
+    ('IF106', 'Pemrograman Web',           3);
+
+INSERT IGNORE INTO mahasiswa (nim, prodi_id, nama_lengkap, jenis_kelamin, tanggal_lahir, angkatan)
+SELECT t.nim, p.prodi_id, t.nama, t.jk, t.tgl, t.angkatan
+FROM (
+    SELECT '2501001' AS nim, 'Budi Santoso' AS nama, 'L' AS jk, '2006-03-14' AS tgl, 2025 AS angkatan, 'TI' AS prodi
+    UNION ALL SELECT '2501002', 'Siti Aminah', 'P', '2006-07-02', 2025, 'TI'
+    UNION ALL SELECT '2502001', 'Andi Wijaya', 'L', '2005-11-21', 2025, 'SI'
+) AS t
+JOIN program_studi p ON p.kode_prodi = t.prodi;
 
 -- ---------------------------------------------------------------------
--- 4. Contoh data master (untuk uji coba; ganti sesuai kampus kamu)
+-- 3. Nilai contoh. Hasil yang seharusnya muncul di view (hitung manual):
+--
+--   2501001 Budi : IF101 diulang (20251 = D, 20252 = B)
+--     IPS 20251 = 25.5 / 9  = 2.83      IPS 20252 = 24.5 / 8 = 3.06
+--     IPK (nilai terbaik) = 47.0 / 14 = 3.36   (bila semua dihitung: 2.94)
+--   2501002 Siti : IPS 20251 = 3.00     IPK = 3.00
+--   2502001 Andi : IPS 20251 = 2.00     IPK = 2.00 (IF101 = E, tidak lulus)
 -- ---------------------------------------------------------------------
-INSERT INTO jurusan (kode_jurusan, nama_jurusan) VALUES
-    ('TEK', 'Teknik')
-ON DUPLICATE KEY UPDATE nama_jurusan = VALUES(nama_jurusan);
-
-INSERT INTO program_studi (jurusan_id, kode_prodi, nama_prodi, jenjang)
-SELECT j.jurusan_id, 'TI', 'Teknik Informatika', 'S1'
-FROM jurusan j
-WHERE j.kode_jurusan = 'TEK'
-ON DUPLICATE KEY UPDATE nama_prodi = VALUES(nama_prodi);
-
-INSERT INTO kurikulum (prodi_id, nama_kurikulum, tahun_berlaku, is_aktif)
-SELECT p.prodi_id, 'Kurikulum 2026', 2026, TRUE
-FROM program_studi p
-WHERE p.kode_prodi = 'TI'
-ON DUPLICATE KEY UPDATE is_aktif = VALUES(is_aktif);
-
-INSERT INTO mata_kuliah (kurikulum_id, kode_mk, nama_mk, sks, semester_paket, jenis_mk)
-SELECT k.kurikulum_id, contoh.kode_mk, contoh.nama_mk, contoh.sks, contoh.semester_paket, 'Wajib'
-FROM kurikulum k
-JOIN program_studi p ON p.prodi_id = k.prodi_id
-JOIN (
-    SELECT 'TI101' AS kode_mk, 'Algoritma dan Pemrograman' AS nama_mk, 3 AS sks, 1 AS semester_paket
-    UNION ALL SELECT 'TI102', 'Matematika Diskrit', 3, 1
-    UNION ALL SELECT 'TI201', 'Basis Data', 3, 3
-) AS contoh
-WHERE p.kode_prodi = 'TI' AND k.nama_kurikulum = 'Kurikulum 2026'
-ON DUPLICATE KEY UPDATE
-    nama_mk = VALUES(nama_mk),
-    sks = VALUES(sks),
-    semester_paket = VALUES(semester_paket);
-
--- Periode KRS sengaja dibuat panjang agar fitur KRS bisa diuji kapan saja.
-INSERT INTO semester_akademik
-    (kode_semester, tahun_akademik, jenis, tgl_mulai, tgl_selesai, tgl_mulai_krs, tgl_selesai_krs, is_aktif)
-VALUES
-    ('20261', '2026/2027', 'Ganjil', '2026-09-01', '2027-01-31', '2026-08-15', '2026-12-31', TRUE)
-ON DUPLICATE KEY UPDATE tahun_akademik = tahun_akademik;
-
-INSERT INTO ruang (kode_ruang, nama_ruang, gedung, kapasitas, jenis) VALUES
-    ('R101', 'Ruang 101',     'Gedung A', 40, 'Kelas'),
-    ('R102', 'Ruang 102',     'Gedung A', 40, 'Kelas'),
-    ('LAB1', 'Lab Komputer 1','Gedung B', 30, 'Lab')
-ON DUPLICATE KEY UPDATE nama_ruang = VALUES(nama_ruang);
+INSERT IGNORE INTO nilai (nim, mk_id, semester_id, nilai_tugas, nilai_uts, nilai_uas)
+SELECT t.nim, k.mk_id, s.semester_id, t.tugas, t.uts, t.uas
+FROM (
+    SELECT '2501001' AS nim, 'IF101' AS kode_mk, '20251' AS kode_semester, 60 AS tugas, 50 AS uts, 45 AS uas
+    UNION ALL SELECT '2501001', 'IF102', '20251', 90, 85, 88
+    UNION ALL SELECT '2501001', 'IF103', '20251', 80, 78, 82
+    UNION ALL SELECT '2501001', 'IF101', '20252', 80, 75, 78
+    UNION ALL SELECT '2501001', 'IF104', '20252', 70, 72, 68
+    UNION ALL SELECT '2501001', 'IF105', '20252', 85, 80, 90
+    UNION ALL SELECT '2501002', 'IF101', '20251', 95, 90, 92
+    UNION ALL SELECT '2501002', 'IF102', '20251', 75, 70, 72
+    UNION ALL SELECT '2501002', 'IF103', '20251', 60, 62, 58
+    UNION ALL SELECT '2502001', 'IF101', '20251', 40, 35, 30
+    UNION ALL SELECT '2502001', 'IF102', '20251', 65, 60, 62
+    UNION ALL SELECT '2502001', 'IF106', '20251', 88, 85, 90
+) AS t
+JOIN mata_kuliah k       ON k.kode_mk       = t.kode_mk
+JOIN semester_akademik s ON s.kode_semester = t.kode_semester;

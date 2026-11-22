@@ -94,7 +94,7 @@ def tampilkan_mahasiswa(parent):
                     row["nama_lengkap"],
                     f"{row['jenjang']} {row['nama_prodi']}",
                     row["nama_jurusan"],
-                    row["angkatan"],
+                    row["angkatan"] or "-",
                     row["status_mahasiswa"],
                 ),
             )
@@ -279,7 +279,7 @@ def tampilkan_mahasiswa(parent):
         ttk.Label(form, text="Jenis kelamin").grid(row=1, column=0, sticky="w", padx=(0, 12), pady=5)
         gender = ttk.Combobox(form, state="readonly", values=("L", "P"), width=32)
         gender.grid(row=1, column=1, sticky="ew", pady=5)
-        gender.set(data["jenis_kelamin"])
+        gender.set(data["jenis_kelamin"] or "")
         add_entry("Tanggal lahir (YYYY-MM-DD)", "tanggal_lahir", data["tanggal_lahir"])
         add_entry("Angkatan", "angkatan", data["angkatan"])
 

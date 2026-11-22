@@ -9,7 +9,7 @@ from backend import auth, dashboard
 from utils.validators import AppError
 
 
-def tampilkan_dashboard(root, user):
+def tampilkan_dashboard(root, user, setelah_logout):
     shell = tk.Frame(root, bg=BG_COLOR)
     shell.pack(fill="both", expand=True)
 
@@ -27,9 +27,7 @@ def tampilkan_dashboard(root, user):
         if messagebox.askyesno("Keluar", "Yakin ingin logout?", parent=root):
             auth.logout()
             shell.destroy()
-            from frontend.login_page import tampilkan_login
-
-            tampilkan_login(root)
+            setelah_logout()
 
     tk.Button(
         header,

@@ -4,8 +4,8 @@ Aplikasi desktop berbasis Python (GUI) dan MySQL untuk mengelola nilai mahasiswa
 
 ## Fitur
 
-- Login admin, dosen, dan mahasiswa memakai username/NIM serta password
-- Pembuatan akun dosen dan mahasiswa oleh admin
+- Login admin memakai username/password; login mahasiswa memakai nama lengkap/NIM
+- Mahasiswa dapat mendaftar dari halaman login; admin mengelola data mahasiswa dan dosen
 - Manajemen data mahasiswa, dosen, jurusan, program studi, mata kuliah, dan semester
 - Mahasiswa mengisi KRS dan dosen PA menyetujui atau menolaknya
 - Input dan finalisasi nilai oleh dosen pada kelas yang diajar
@@ -23,7 +23,7 @@ Bobot nilai akhir yang dipakai: tugas 30%, UTS 30%, UAS 40%. Untuk mata kuliah y
 | ---------------------------------------------------------- | --------------- | ----------------- | ---------------------- |
 | Kelola akun dosen dan mahasiswa                            | ya              | tidak             | tidak                  |
 | Kelola data master (jurusan, prodi, mata kuliah, semester) | ya              | tidak             | tidak                  |
-| Kelola KRS                                                  | tidak           | setujui KRS PA    | pilih kelas            |
+| Kelola KRS                                                 | tidak           | setujui KRS PA    | pilih kelas            |
 | Input nilai                                                | tidak           | kelas yang diajar | tidak                  |
 | Lihat transkrip dan IPK                                    | semua mahasiswa | semua mahasiswa   | hanya miliknya sendiri |
 
@@ -31,7 +31,7 @@ Pembatasan "hanya miliknya sendiri" ditegakkan di lapisan backend, bukan hanya d
 
 ## Catatan Keamanan
 
-Password untuk akun admin, dosen, dan mahasiswa disimpan sebagai hash bcrypt pada tabel `users`. Mahasiswa hanya dapat melihat transkrip miliknya; nilai hanya dapat difinalisasi oleh dosen yang mengajar kelas terkait.
+Password admin dan dosen disimpan sebagai hash bcrypt pada tabel `users`. Mahasiswa masuk dengan nama lengkap dan NIM. Mahasiswa hanya dapat melihat transkrip miliknya; nilai hanya dapat difinalisasi oleh dosen yang mengajar kelas terkait.
 
 ## Desain Database
 
@@ -233,7 +233,11 @@ Lapisan `frontend/` tidak berisi SQL. Semua akses database dilakukan lewat `back
    mysql -u root < database\triggers_views.sql
    ```
 
-   Perhatian: `schema.sql` menjalankan `DROP DATABASE siakad` sehingga database lama dibangun ulang dari nol.
+   `schema.sql` membuat tabel yang belum ada, tetapi tidak mengubah struktur tabel yang sudah ada. Pada database lama, jalankan migrasi berikut satu kali setelah backup:
+
+   ```bash
+   mysql -u root siakad < database\migrate_student_public_registration.sql
+   ```
 
    Operator `<` tidak didukung di PowerShell. Gunakan Command Prompt, atau perintah `source` di dalam prompt `mysql>`, atau fitur **Import** di phpMyAdmin / **Run SQL file** di HeidiSQL. Tambahkan `-p` setelah `-u root` jika MySQL kamu memakai password.
 

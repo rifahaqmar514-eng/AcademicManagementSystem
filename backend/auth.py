@@ -28,7 +28,7 @@ def _mulai_sesi(**data):
 
 
 def login(username, password):
-    """Login admin, dosen, atau mahasiswa dari tabel users dan roles."""
+    """Login akun berpassword dari tabel users/roles (admin dan dosen)."""
     username = (username or "").strip()
     if not username or not password:
         raise AuthError("Username/NIM dan password wajib diisi.")
@@ -40,7 +40,7 @@ def login(username, password):
     if user is None:
         dummy_verify(password)
         raise AuthError(PESAN_GAGAL_LOGIN)
-    if not verify_password(password, user["password_hash"]):
+    if not user["password_hash"] or not verify_password(password, user["password_hash"]):
         raise AuthError(PESAN_GAGAL_LOGIN)
     if not user["is_active"]:
         raise AuthError("Akun dinonaktifkan.")
@@ -87,12 +87,39 @@ def login(username, password):
     )
 
 
-def login_mahasiswa(nim, password):
-    user = login(nim, password)
-    if user["role"] != "mahasiswa":
-        logout()
+def login_mahasiswa(nama, nim):
+    """Login mahasiswa memakai nama lengkap dan NIM sesuai form login."""
+    nama = cek_nama_orang(nama, "Nama")
+    nim = cek_nim(nim)
+    user = db.fetch_one(
+        "SELECT u.user_id, u.username, u.is_active, m.mahasiswa_id, m.nim, "
+        "m.nama_lengkap, m.status_mahasiswa "
+        "FROM users u JOIN roles r ON r.role_id = u.role_id "
+        "JOIN mahasiswa m ON m.user_id = u.user_id "
+        "WHERE r.nama_role = 'mahasiswa' AND u.username = %s AND m.nim = %s "
+        "AND LOWER(TRIM(m.nama_lengkap)) = LOWER(TRIM(%s))",
+        (nim, nim, nama),
+    )
+    if user is None or not user["is_active"]:
         raise AuthError(PESAN_GAGAL_LOGIN)
-    return user
+    if user["status_mahasiswa"] in ("DO", "Keluar"):
+        raise AuthError(
+            f"Akun tidak dapat digunakan (status: {user['status_mahasiswa']})."
+        )
+    db.execute(
+        "UPDATE users SET last_login_at = %s WHERE user_id = %s",
+        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user["user_id"]),
+    )
+    return _mulai_sesi(
+        role="mahasiswa",
+        user_id=user["user_id"],
+        username=user["username"],
+        nama=user["nama_lengkap"],
+        nim=user["nim"],
+        mahasiswa_id=user["mahasiswa_id"],
+        dosen_id=None,
+        admin_id=None,
+    )
 
 
 def login_admin(username, password):
@@ -111,14 +138,12 @@ def pengguna_saat_ini():
     return session.get_user() if session.is_logged_in() else None
 
 
-@require_role(ADMIN, DOSEN)
 def daftar_jurusan():
     return db.fetch_all(
         "SELECT jurusan_id, kode_jurusan, nama_jurusan FROM jurusan ORDER BY nama_jurusan"
     )
 
 
-@require_role(ADMIN, DOSEN)
 def daftar_prodi(jurusan_id):
     jurusan_id = cek_id(jurusan_id, "Jurusan")
     return db.fetch_all(
@@ -138,13 +163,31 @@ def daftar_dosen(prodi_id):
     )
 
 
+def opsi_prodi_registrasi():
+    """Data pilihan minimal yang dibutuhkan formulir pendaftaran mahasiswa."""
+    return db.fetch_all(
+        "SELECT prodi_id, kode_prodi, nama_prodi, jenjang "
+        "FROM program_studi ORDER BY nama_prodi"
+    )
+
+
+def opsi_dosen_pa(prodi_id):
+    """Dosen PA aktif pada prodi yang dipilih, untuk formulir pendaftaran."""
+    prodi_id = cek_id(prodi_id, "Program studi")
+    return db.fetch_all(
+        "SELECT dosen_id, nama_lengkap FROM dosen "
+        "WHERE prodi_id = %s AND status = 'Aktif' ORDER BY nama_lengkap",
+        (prodi_id,),
+    )
+
+
 @require_role(ADMIN)
 def registrasi(
     username, email, password, nim, nama, prodi_id, dosen_pa_id,
     jenis_kelamin, tanggal_lahir, angkatan, tempat_lahir=None, agama=None,
     nik=None, alamat=None, no_hp=None, nama_ayah=None, nama_ibu=None,
 ):
-    """Buat user dan profil mahasiswa dalam satu transaksi."""
+    """Admin membuat akun dengan data profil lengkap."""
     username = cek_nim(username)
     nim = cek_nim(nim)
     if username != nim:
@@ -198,6 +241,38 @@ def registrasi(
             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Aktif')",
             (user_id, prodi_id, dosen_pa_id, nim, nama, jenis_kelamin, tempat_lahir,
              tanggal_lahir, agama, nik, alamat, no_hp, nama_ayah, nama_ibu, angkatan),
+        )
+    return nim
+
+
+def registrasi_mahasiswa(nama, nim, prodi_id):
+    """Pendaftaran mandiri mahasiswa sesuai formulir publik di halaman login."""
+    nama = cek_nama_orang(nama, "Nama")
+    nim = cek_nim(nim)
+    prodi_id = cek_id(prodi_id, "Program studi")
+
+    if db.fetch_one(
+        "SELECT prodi_id FROM program_studi WHERE prodi_id = %s", (prodi_id,)
+    ) is None:
+        raise ValidationError("Program studi tidak ditemukan.")
+
+    with db.db_cursor(commit=True) as cur:
+        cur.execute("SELECT role_id FROM roles WHERE nama_role = %s", ("mahasiswa",))
+        role = cur.fetchone()
+        if role is None:
+            raise ValidationError("Role mahasiswa belum tersedia. Jalankan database/seed.sql.")
+        cur.execute(
+            "INSERT INTO users (role_id, username, email, password_hash, is_active) "
+            "VALUES (%s, %s, NULL, NULL, TRUE)",
+            (role["role_id"], nim),
+        )
+        user_id = cur.lastrowid
+        cur.execute(
+            "INSERT INTO mahasiswa "
+            "(user_id, prodi_id, dosen_pa_id, nim, nama_lengkap, jenis_kelamin, "
+            "tanggal_lahir, angkatan, status_mahasiswa) "
+            "VALUES (%s, %s, NULL, %s, %s, NULL, NULL, NULL, 'Aktif')",
+            (user_id, prodi_id, nim, nama),
         )
     return nim
 

@@ -1,19 +1,22 @@
-"""Entry point aplikasi desktop SIAKAD."""
+"""Titik masuk aplikasi. Jalankan dari folder proyek:  python main.py"""
+import ctypes
 import tkinter as tk
 
-from assets.colors import BG_COLOR, TEXT_DARK
-from frontend.login_page import tampilkan_login
+from frontend import main_window
+
+
+def _teks_tajam():
+    """Di Windows, mencegah teks tampak buram pada layar beresolusi tinggi."""
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass  # bukan Windows, atau sudah diatur: abaikan
 
 
 def main():
+    _teks_tajam()
     root = tk.Tk()
-    root.title("Academic Management System")
-    root.geometry("1000x680")
-    root.minsize(820, 560)
-    root.configure(bg=BG_COLOR)
-    root.option_add("*Font", ("Segoe UI", 10))
-    root.option_add("*Foreground", TEXT_DARK)
-    tampilkan_login(root)
+    main_window.mulai(root)
     root.mainloop()
 
 

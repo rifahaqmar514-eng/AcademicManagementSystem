@@ -4,6 +4,8 @@ from utils import session
 from utils.permissions import DOSEN, MAHASISWA, require_role
 from utils.validators import ValidationError, cek_id
 
+DEFAULT_SKS_MAKS = 20
+
 
 def _mahasiswa_id():
     value = session.get_user().get("mahasiswa_id")
@@ -35,6 +37,45 @@ def _semester_aktif(cur=None, cek_periode=True):
     return row
 
 
+def _batas_sks(mahasiswa_id, semester_id, cur=None):
+    """Batas SKS mengikuti IPS semester terakhir; semester pertama memakai 20 SKS."""
+    query = (
+        "SELECT vi.ips FROM v_ips vi "
+        "JOIN semester_akademik lalu ON lalu.semester_id = vi.semester_id "
+        "JOIN semester_akademik aktif ON aktif.semester_id = %s "
+        "WHERE vi.mahasiswa_id = %s AND lalu.kode_semester < aktif.kode_semester "
+        "ORDER BY lalu.kode_semester DESC LIMIT 1"
+    )
+    if cur is None:
+        ips = db.fetch_one(query, (semester_id, mahasiswa_id))
+    else:
+        cur.execute(query, (semester_id, mahasiswa_id))
+        ips = cur.fetchone()
+    if ips is None:
+        return DEFAULT_SKS_MAKS
+
+    query = (
+        "SELECT sks_maks FROM aturan_batas_sks "
+        "WHERE %s BETWEEN ips_min AND ips_max ORDER BY sks_maks DESC LIMIT 1"
+    )
+    if cur is None:
+        aturan = db.fetch_one(query, (ips["ips"],))
+    else:
+        cur.execute(query, (ips["ips"],))
+        aturan = cur.fetchone()
+    return aturan["sks_maks"] if aturan else DEFAULT_SKS_MAKS
+
+
+def _total_sks_krs(cur, krs_id):
+    cur.execute(
+        "SELECT COALESCE(SUM(mk.sks), 0) AS total FROM krs_detail kd "
+        "JOIN kelas kl ON kl.kelas_id = kd.kelas_id "
+        "JOIN mata_kuliah mk ON mk.mk_id = kl.mk_id WHERE kd.krs_id = %s",
+        (krs_id,),
+    )
+    return cur.fetchone()["total"]
+
+
 def _ambil_atau_buat_draft(cur, mahasiswa_id, semester_id):
     cur.execute(
         "SELECT krs_id, status FROM krs WHERE mahasiswa_id = %s AND semester_id = %s FOR UPDATE",
@@ -47,13 +88,6 @@ def _ambil_atau_buat_draft(cur, mahasiswa_id, semester_id):
             (mahasiswa_id, semester_id),
         )
         return {"krs_id": cur.lastrowid, "status": "Draft"}
-    if krs["status"] == "Ditolak":
-        cur.execute(
-            "UPDATE krs SET status = 'Draft', tgl_pengajuan = NULL, disetujui_oleh = NULL, "
-            "tgl_persetujuan = NULL, catatan_pa = NULL WHERE krs_id = %s",
-            (krs["krs_id"],),
-        )
-        return {"krs_id": krs["krs_id"], "status": "Draft"}
     return krs
 
 
@@ -63,6 +97,7 @@ def ringkasan_saya():
     semester = _semester_aktif(cek_periode=False)
     if semester is None:
         raise ValidationError("Belum ada semester aktif.")
+    batas_sks = _batas_sks(mahasiswa_id, semester["semester_id"])
     krs = db.fetch_one(
         "SELECT krs_id, status, tgl_pengajuan, tgl_persetujuan, catatan_pa "
         "FROM krs WHERE mahasiswa_id = %s AND semester_id = %s",
@@ -80,7 +115,14 @@ def ringkasan_saya():
             "WHERE kd.krs_id = %s ORDER BY mk.kode_mk, kl.nama_kelas",
             (krs["krs_id"],),
         )
-    return {"semester": semester, "krs": krs, "detail": detail}
+    sks_diambil = sum(row["sks"] for row in detail)
+    return {
+        "semester": semester,
+        "krs": krs,
+        "detail": detail,
+        "sks_diambil": sks_diambil,
+        "batas_sks": batas_sks,
+    }
 
 
 @require_role(MAHASISWA)
@@ -95,6 +137,8 @@ def kelas_tersedia():
         student = cur.fetchone()
         if student is None:
             raise ValidationError("Profil mahasiswa tidak ditemukan.")
+        batas_sks = _batas_sks(mahasiswa_id, semester["semester_id"], cur)
+        sks_diambil = _total_sks_krs(cur, krs["krs_id"])
         cur.execute(
             "SELECT kl.kelas_id, kl.nama_kelas, kl.kuota, mk.mk_id, mk.kode_mk, "
             "mk.nama_mk, mk.sks, p.nama_prodi, "
@@ -106,11 +150,15 @@ def kelas_tersedia():
             "WHERE kl.semester_id = %s AND p.prodi_id = %s AND kl.kuota > "
             "(SELECT COUNT(*) FROM krs_detail kd2 JOIN krs k2 ON k2.krs_id = kd2.krs_id "
             "WHERE kd2.kelas_id = kl.kelas_id AND k2.status IN ('Diajukan','Disetujui')) "
+            "AND %s + mk.sks <= %s "
             "AND NOT EXISTS (SELECT 1 FROM krs_detail mine "
             "JOIN kelas mine_class ON mine_class.kelas_id = mine.kelas_id "
             "WHERE mine.krs_id = %s AND (mine.kelas_id = kl.kelas_id OR mine_class.mk_id = mk.mk_id)) "
             "ORDER BY mk.semester_paket, mk.kode_mk, kl.nama_kelas",
-            (semester["semester_id"], student["prodi_id"], krs["krs_id"]),
+            (
+                semester["semester_id"], student["prodi_id"],
+                sks_diambil, batas_sks, krs["krs_id"],
+            ),
         )
         return cur.fetchall()
 
@@ -144,6 +192,14 @@ def ambil_kelas(kelas_id):
         )
         if cur.fetchone()["jumlah"] >= kelas["kuota"]:
             raise ValidationError("Kuota kelas sudah penuh.")
+        batas_sks = _batas_sks(mahasiswa_id, semester["semester_id"], cur)
+        sks_diambil = _total_sks_krs(cur, krs["krs_id"])
+        cur.execute("SELECT sks FROM mata_kuliah WHERE mk_id = %s", (kelas["mk_id"],))
+        sks_kelas = cur.fetchone()["sks"]
+        if sks_diambil + sks_kelas > batas_sks:
+            raise ValidationError(
+                f"Batas KRS semester ini {batas_sks} SKS; pilihan saat ini {sks_diambil} SKS."
+            )
         cur.execute(
             "SELECT kd.krs_detail_id FROM krs_detail kd "
             "JOIN kelas existing ON existing.kelas_id = kd.kelas_id "
@@ -179,6 +235,28 @@ def hapus_kelas(krs_detail_id):
 
 
 @require_role(MAHASISWA)
+def revisi():
+    """Buka kembali KRS yang ditolak setelah mahasiswa memilih untuk merevisinya."""
+    mahasiswa_id = _mahasiswa_id()
+    semester = _semester_aktif()
+    with db.db_cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT krs_id, status FROM krs "
+            "WHERE mahasiswa_id = %s AND semester_id = %s FOR UPDATE",
+            (mahasiswa_id, semester["semester_id"]),
+        )
+        krs = cur.fetchone()
+        if krs is None or krs["status"] != "Ditolak":
+            raise ValidationError("Hanya KRS yang ditolak yang dapat direvisi.")
+        cur.execute(
+            "UPDATE krs SET status = 'Draft', tgl_pengajuan = NULL, disetujui_oleh = NULL, "
+            "tgl_persetujuan = NULL WHERE krs_id = %s",
+            (krs["krs_id"],),
+        )
+    return krs["krs_id"]
+
+
+@require_role(MAHASISWA)
 def ajukan():
     mahasiswa_id = _mahasiswa_id()
     semester = _semester_aktif()
@@ -189,6 +267,12 @@ def ajukan():
         cur.execute("SELECT COUNT(*) AS jumlah FROM krs_detail WHERE krs_id = %s", (krs["krs_id"],))
         if cur.fetchone()["jumlah"] == 0:
             raise ValidationError("Pilih minimal satu kelas sebelum mengajukan KRS.")
+        batas_sks = _batas_sks(mahasiswa_id, semester["semester_id"], cur)
+        sks_diambil = _total_sks_krs(cur, krs["krs_id"])
+        if sks_diambil > batas_sks:
+            raise ValidationError(
+                f"Total KRS {sks_diambil} SKS melebihi batas semester {batas_sks} SKS."
+            )
         cur.execute(
             "SELECT kl.kelas_id, kl.kuota FROM krs_detail kd "
             "JOIN kelas kl ON kl.kelas_id = kd.kelas_id "

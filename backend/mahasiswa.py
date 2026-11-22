@@ -22,7 +22,7 @@ _SELECT = (
     "j.nama_jurusan, m.dosen_pa_id, d.nama_lengkap AS nama_dosen_pa "
     "FROM mahasiswa m JOIN program_studi p ON p.prodi_id = m.prodi_id "
     "JOIN jurusan j ON j.jurusan_id = p.jurusan_id "
-    "JOIN dosen d ON d.dosen_id = m.dosen_pa_id "
+    "LEFT JOIN dosen d ON d.dosen_id = m.dosen_pa_id "
 )
 
 
