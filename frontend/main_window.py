@@ -1,5 +1,7 @@
 """Kerangka aplikasi: tema, navigasi antar layar, dan menu sesuai role.
 
+Tema: "Coffee Shop" — hangat, earthy, menenangkan.
+
 Alur layar:
     mulai(root) -> login -> aplikasi (header + menu samping + isi halaman) -> keluar -> login
 
@@ -12,6 +14,7 @@ import traceback
 from tkinter import messagebox, ttk
 
 from assets import colors as c
+from assets.styles import terapkan_style
 from backend import auth, dashboard
 from frontend import login_page
 from utils import permissions, session
@@ -52,7 +55,12 @@ def _tengahkan(root, lebar, tinggi):
 
 
 def terapkan_tema(root):
-    """Menyeragamkan tampilan widget ttk (kolom isian, tombol, tabel)."""
+    """Menyeragamkan tampilan widget ttk — varian tema kopi.
+
+    Catatan: fungsi ini melengkapi `assets.styles.terapkan_style` untuk
+    widget yang dipakai halaman data (Treeview, Notebook, dll.). Aman
+    dipanggil berulang; nilai konsisten dengan palet coffee shop.
+    """
     gaya = ttk.Style(root)
     gaya.theme_use("clam")
     root.option_add("*TCombobox*Listbox.font", c.FONT_BODY)
@@ -81,23 +89,32 @@ def terapkan_tema(root):
     )
     gaya.configure("Form.TCheckbutton", background=c.CARD_BG, foreground=c.TEXT_MUTED)
 
+    # --- Primary: caramel ---
     gaya.configure(
-        "Primary.TButton", background=c.PRIMARY_COLOR, foreground="#FFFFFF", font=c.FONT_BUTTON,
-        padding=(16, 11), borderwidth=0, focusthickness=0, relief="flat",
+        "Primary.TButton", background=c.PRIMARY_COLOR, foreground="#FFF8F0",
+        font=c.FONT_BUTTON, padding=(16, 11), borderwidth=0,
+        focusthickness=0, relief="flat",
     )
     gaya.map(
         "Primary.TButton",
-        background=[("disabled", "#93C5FD"), ("pressed", c.PRIMARY_DARK), ("active", c.PRIMARY_HOVER)],
-        foreground=[("disabled", "#FFFFFF")],
+        background=[("disabled", c.SURFACE_MUTED), ("pressed", c.PRIMARY_DARK),
+                    ("active", c.PRIMARY_HOVER)],
+        foreground=[("disabled", c.TEXT_MUTED)],
     )
+
+    # --- Secondary: cream gelap ---
     gaya.configure(
-        "Secondary.TButton", background=c.CARD_BG, foreground=c.TEXT_DARK, font=c.FONT_BUTTON,
-        padding=(16, 11), bordercolor=c.BORDER_COLOR, focusthickness=0, relief="flat",
+        "Secondary.TButton", background=c.CARD_BG, foreground=c.TEXT_DARK,
+        font=c.FONT_BUTTON, padding=(16, 11), bordercolor=c.BORDER_COLOR,
+        focusthickness=0, relief="flat",
     )
-    gaya.map("Secondary.TButton", background=[("active", c.BG_COLOR)])
+    gaya.map("Secondary.TButton", background=[("active", c.SURFACE_MUTED)])
+
+    # --- Link: caramel gelap ---
     gaya.configure(
-        "Link.TButton", background=c.CARD_BG, foreground=c.PRIMARY_COLOR, font=c.FONT_LINK,
-        borderwidth=0, padding=(0, 2), focusthickness=0, relief="flat",
+        "Link.TButton", background=c.CARD_BG, foreground=c.PRIMARY_COLOR,
+        font=c.FONT_LINK, borderwidth=0, padding=(0, 2),
+        focusthickness=0, relief="flat",
     )
     gaya.map(
         "Link.TButton",
@@ -105,17 +122,24 @@ def terapkan_tema(root):
         background=[("active", c.CARD_BG)],
     )
 
-    # dipakai halaman data (tabel) yang dibuat nanti
+    # --- Treeview (tabel data) ---
     gaya.configure(
-        "Treeview", background=c.CARD_BG, fieldbackground=c.CARD_BG, foreground=c.TEXT_DARK,
-        rowheight=30, bordercolor=c.BORDER_COLOR, borderwidth=0,
+        "Treeview", background=c.CARD_BG, fieldbackground=c.CARD_BG,
+        foreground=c.TEXT_DARK, rowheight=30, bordercolor=c.BORDER_COLOR,
+        borderwidth=0,
     )
-    gaya.map("Treeview", background=[("selected", c.PRIMARY_LIGHT)], foreground=[("selected", c.TEXT_DARK)])
+    gaya.map(
+        "Treeview",
+        background=[("selected", c.PRIMARY_LIGHT)],
+        foreground=[("selected", c.TEXT_DARK)],
+    )
     gaya.configure(
-        "Treeview.Heading", background=c.PRIMARY_DARK, foreground="#FFFFFF",
+        "Treeview.Heading", background=c.PRIMARY_DARK, foreground="#FFF8F0",
         font=c.FONT_BOLD, padding=(8, 8), relief="flat",
     )
     gaya.map("Treeview.Heading", background=[("active", c.PRIMARY_HOVER)])
+
+    # --- Notebook (tab) ---
     gaya.configure("TNotebook", background=c.BG_COLOR, borderwidth=0, tabmargins=(0, 8, 0, 0))
     gaya.configure(
         "TNotebook.Tab", background=c.TAB_IDLE_BG, foreground=c.TEXT_MUTED,
@@ -134,6 +158,7 @@ def mulai(root):
     root.configure(bg=c.BG_COLOR)
     root.minsize(980, 620)
     _tengahkan(root, 1100, 700)
+    terapkan_style(root)
     terapkan_tema(root)
     root.protocol("WM_DELETE_WINDOW", lambda: _tutup(root))
     tampilkan_login(root)
@@ -185,8 +210,10 @@ def _cek_sesi(root):
 
 
 def _halaman_pengganti(parent, judul, pesan, warna=c.TEXT_MUTED):
-    kartu = tk.Frame(parent, bg=c.CARD_BG, padx=28, pady=24, highlightthickness=1, highlightbackground=c.BORDER_COLOR)
-    tk.Label(kartu, text=judul, font=c.FONT_HEADING, bg=c.CARD_BG, fg=c.TEXT_DARK).pack(anchor="w")
+    kartu = tk.Frame(parent, bg=c.CARD_BG, padx=28, pady=24,
+                     highlightthickness=1, highlightbackground=c.BORDER_COLOR)
+    tk.Label(kartu, text=judul, font=c.FONT_HEADING, bg=c.CARD_BG,
+             fg=c.TEXT_DARK).pack(anchor="w")
     tk.Label(
         kartu, text=pesan, font=c.FONT_BODY, bg=c.CARD_BG, fg=warna,
         wraplength=620, justify="left", anchor="w",
@@ -201,7 +228,7 @@ def _buat_beranda(parent, pengguna):
     hero.pack(fill="x", pady=(0, 20))
     tk.Label(
         hero, text=f"Selamat datang, {pengguna.get('nama', 'Pengguna')}!",
-        font=(c.FONT_FAMILY, 23, "bold"), bg=c.PRIMARY_DARK, fg="#FFFFFF",
+        font=(c.FONT_FAMILY, 23, "bold"), bg=c.PRIMARY_DARK, fg="#FFF8F0",
     ).pack(anchor="w")
     role = NAMA_ROLE.get(pengguna.get("role"), "Pengguna")
     tk.Label(
@@ -214,7 +241,8 @@ def _buat_beranda(parent, pengguna):
     except Exception as err:
         traceback.print_exc()
         _halaman_pengganti(
-            halaman, "Ringkasan belum tersedia", f"Data dashboard tidak dapat dimuat:\n{err}", c.DANGER_COLOR,
+            halaman, "Ringkasan belum tersedia",
+            f"Data dashboard tidak dapat dimuat:\n{err}", c.DANGER_COLOR,
         ).pack(fill="x")
         return halaman
 
@@ -232,10 +260,14 @@ def _buat_beranda(parent, pengguna):
             ringkasan, bg=c.CARD_BG, padx=18, pady=16,
             highlightthickness=1, highlightbackground=c.BORDER_COLOR,
         )
-        kartu.grid(row=0, column=kolom, sticky="nsew", padx=(0 if kolom == 0 else 8, 0 if kolom == 3 else 8))
-        tk.Label(kartu, text=label, bg=c.CARD_BG, fg=c.TEXT_MUTED, font=c.FONT_BODY).pack(anchor="w")
+        kartu.grid(
+            row=0, column=kolom, sticky="nsew",
+            padx=(0 if kolom == 0 else 8, 0 if kolom == 3 else 8),
+        )
+        tk.Label(kartu, text=label, bg=c.CARD_BG, fg=c.TEXT_MUTED,
+                 font=c.FONT_BODY).pack(anchor="w")
         tk.Label(
-            kartu, text=str(nilai), bg=c.CARD_BG, fg=c.PRIMARY_DARK,
+            kartu, text=str(nilai), bg=c.CARD_BG, fg=c.PRIMARY_COLOR,
             font=(c.FONT_FAMILY, 18, "bold"),
         ).pack(anchor="w", pady=(8, 0))
 
@@ -275,10 +307,13 @@ def _buat_halaman(kunci, parent, pengguna):
         if err.name == nama_modul:
             return _halaman_pengganti(parent, label, "Halaman ini belum tersedia.")
         traceback.print_exc()
-        return _halaman_pengganti(parent, label, f"Gagal memuat halaman: {err}", c.DANGER_COLOR)
+        return _halaman_pengganti(parent, label, f"Gagal memuat halaman: {err}",
+                                  c.DANGER_COLOR)
     except Exception as err:
         traceback.print_exc()
-        return _halaman_pengganti(parent, label, f"Halaman tidak dapat dibuka:\n{err}", c.DANGER_COLOR)
+        return _halaman_pengganti(parent, label,
+                                  f"Halaman tidak dapat dibuka:\n{err}",
+                                  c.DANGER_COLOR)
 
 
 def tampilkan_aplikasi(root, pengguna):
@@ -298,8 +333,8 @@ def tampilkan_aplikasi(root, pengguna):
     identitas = tk.Frame(header, bg=c.CARD_BG)
     identitas.pack(side="left")
     tk.Label(
-        identitas, text="A", font=(c.FONT_FAMILY, 15, "bold"),
-        bg=c.PRIMARY_DARK, fg="#FFFFFF", width=3, pady=5,
+        identitas, text="❖", font=(c.FONT_FAMILY, 15, "bold"),
+        bg=c.PRIMARY_DARK, fg="#FFF8F0", width=3, pady=5,
     ).pack(side="left", padx=(0, 10))
     merek = tk.Frame(identitas, bg=c.CARD_BG)
     merek.pack(side="left")
@@ -316,22 +351,25 @@ def tampilkan_aplikasi(root, pengguna):
             auth.logout()
             tampilkan_login(root, "Anda telah keluar.", "info")
 
-    ttk.Button(header, text="Keluar", style="Secondary.TButton", command=keluar_dari_akun).pack(side="right")
+    ttk.Button(header, text="Keluar", style="Secondary.TButton",
+               command=keluar_dari_akun).pack(side="right")
     profil = tk.Frame(header, bg=c.CARD_BG)
     profil.pack(side="right", padx=(0, 18))
     nama = pengguna.get("nama", "Pengguna")
     inisial = "".join(kata[0] for kata in nama.split()[:2]).upper() or "U"
     tk.Label(
-        profil, text=inisial, font=c.FONT_BOLD, bg=c.PRIMARY_LIGHT,
-        fg=c.PRIMARY_DARK, width=3, pady=5,
+        profil, text=inisial, font=c.FONT_BOLD, bg=c.PRIMARY_ACCENT,
+        fg="#FFF8F0", width=3, pady=5,
     ).pack(side="left", padx=(0, 9))
     teks_profil = tk.Frame(profil, bg=c.CARD_BG)
     teks_profil.pack(side="left")
-    tk.Label(teks_profil, text=nama, font=c.FONT_BOLD, bg=c.CARD_BG, fg=c.TEXT_DARK).pack(anchor="e")
+    tk.Label(teks_profil, text=nama, font=c.FONT_BOLD, bg=c.CARD_BG,
+             fg=c.TEXT_DARK).pack(anchor="e")
     keterangan = NAMA_ROLE.get(pengguna.get("role"), pengguna.get("role", "Pengguna"))
     if pengguna.get("nim"):
         keterangan += f"  •  {pengguna['nim']}"
-    tk.Label(teks_profil, text=keterangan, font=c.FONT_SMALL, bg=c.CARD_BG, fg=c.TEXT_MUTED).pack(anchor="e")
+    tk.Label(teks_profil, text=keterangan, font=c.FONT_SMALL, bg=c.CARD_BG,
+             fg=c.TEXT_MUTED).pack(anchor="e")
 
     # --- menu samping ---
     sidebar = tk.Frame(kerangka, bg=c.SIDEBAR_BG, width=230)
@@ -339,7 +377,7 @@ def tampilkan_aplikasi(root, pengguna):
     sidebar.pack_propagate(False)
     tk.Label(
         sidebar, text="NAVIGASI", font=c.FONT_SMALL, bg=c.SIDEBAR_BG,
-        fg=c.PRIMARY_LIGHT, anchor="w", padx=20,
+        fg=c.SIDEBAR_TEXT, anchor="w", padx=20,
     ).pack(fill="x", pady=(24, 10))
 
     # --- area isi ---
@@ -356,7 +394,7 @@ def tampilkan_aplikasi(root, pengguna):
             tombol.configure(
                 text=f"{'●' if aktif else '○'}   {MENU[kunci]}",
                 bg=c.SIDEBAR_ACTIVE if aktif else c.SIDEBAR_BG,
-                fg="#FFFFFF" if aktif else c.SIDEBAR_TEXT,
+                fg="#FFF8F0" if aktif else c.SIDEBAR_TEXT,
             )
 
     def buka(kunci):
@@ -373,9 +411,10 @@ def tampilkan_aplikasi(root, pengguna):
     kunci_menu = [k for k in permissions.menus_for_current_user() if k in MENU]
     for kunci in kunci_menu:
         tombol = tk.Button(
-            sidebar, text=f"○   {MENU[kunci]}", font=c.FONT_BODY, anchor="w", relief="flat", bd=0,
-            cursor="hand2", padx=20, pady=12, bg=c.SIDEBAR_BG, fg=c.SIDEBAR_TEXT,
-            activebackground=c.SIDEBAR_HOVER, activeforeground="#FFFFFF",
+            sidebar, text=f"○   {MENU[kunci]}", font=c.FONT_BODY, anchor="w",
+            relief="flat", bd=0, cursor="hand2", padx=20, pady=12,
+            bg=c.SIDEBAR_BG, fg=c.SIDEBAR_TEXT,
+            activebackground=c.SIDEBAR_HOVER, activeforeground="#FFF8F0",
             command=lambda k=kunci: buka(k),
         )
         tombol.pack(fill="x")
@@ -383,14 +422,17 @@ def tampilkan_aplikasi(root, pengguna):
 
     tk.Label(
         sidebar, text="Sistem Informasi Akademik", font=c.FONT_SMALL,
-        bg=c.SIDEBAR_BG, fg=c.PRIMARY_LIGHT, anchor="w", padx=20,
+        bg=c.SIDEBAR_BG, fg=c.SIDEBAR_TEXT, anchor="w", padx=20,
         justify="left", wraplength=185,
     ).pack(side="bottom", fill="x", pady=18)
 
     if kunci_menu:
         buka(kunci_menu[0])
     else:
-        _halaman_pengganti(isi, "Tidak ada menu", "Akun ini belum memiliki akses ke menu mana pun.").pack(fill="both", expand=True)
+        _halaman_pengganti(
+            isi, "Tidak ada menu",
+            "Akun ini belum memiliki akses ke menu mana pun.",
+        ).pack(fill="both", expand=True)
 
     _state["after_id"] = root.after(CEK_SESI_MS, lambda: _cek_sesi(root))
     return kerangka

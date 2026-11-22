@@ -1,277 +1,150 @@
-# Academic Management System (SIAKAD): Nilai & IPK
+# Academic Management System (SIAKAD)
 
-Aplikasi desktop berbasis Python (GUI) dan MySQL untuk mengelola nilai mahasiswa dan menghitung IPS/IPK. Pengguna wajib login. Dibuat sebagai proyek UAS mata kuliah Basis Data.
+Aplikasi desktop Python dan MySQL untuk mengelola data akademik mahasiswa, KRS, nilai, transkrip, IPS, dan IPK. Antarmuka dibuat dengan Tkinter/ttk.
 
 ## Fitur
 
-- Login admin memakai username/password; login mahasiswa memakai nama lengkap/NIM
-- Mahasiswa dapat mendaftar dari halaman login; admin mengelola data mahasiswa dan dosen
-- Manajemen data mahasiswa, dosen, jurusan, program studi, mata kuliah, dan semester
-- Mahasiswa mengisi KRS dan dosen PA menyetujui atau menolaknya
-- Input dan finalisasi nilai oleh dosen pada kelas yang diajar
-- Konversi nilai angka ke huruf mutu melalui skala nilai yang dapat diubah
-- Perhitungan **IPS** per semester dan **IPK** menggunakan VIEW
-- Transkrip nilai beserta status kelulusan
-- Pencarian dan filter data
-- Validasi data lewat constraint dan trigger
+- Login admin dan dosen menggunakan username dan password.
+- Mahasiswa mendaftar dan login menggunakan nama lengkap serta NIM.
+- Pengelolaan data mahasiswa, dosen, jurusan, program studi, kelas, dan mata kuliah.
+- Pengajuan KRS oleh mahasiswa serta persetujuan oleh dosen PA.
+- Input nilai oleh dosen untuk kelas yang diajar.
+- Transkrip, IPS, dan IPK disajikan melalui view database.
+- Pencarian dan filter data.
 
-Bobot nilai akhir yang dipakai: tugas 30%, UTS 30%, UAS 40%. Untuk mata kuliah yang diulang, IPK memakai nilai terbaik.
+## Hak akses
 
-## Hak Akses
+| Fitur             | Admin  | Dosen                           | Mahasiswa                     |
+| ----------------- | ------ | ------------------------------- | ----------------------------- |
+| Data mahasiswa    | Kelola | Lihat sesuai akses              | —                             |
+| Data dosen        | Kelola | —                               | —                             |
+| Master akademik   | Kelola | —                               | —                             |
+| KRS               | —      | Setujui KRS mahasiswa bimbingan | Ajukan dan kelola KRS sendiri |
+| Nilai             | Lihat  | Input nilai kelas yang diajar   | Lihat nilai sendiri           |
+| Transkrip dan IPK | Lihat  | Lihat                           | Lihat milik sendiri           |
 
-| Fitur                                                      | Admin           | Dosen             | Mahasiswa              |
-| ---------------------------------------------------------- | --------------- | ----------------- | ---------------------- |
-| Kelola akun dosen dan mahasiswa                            | ya              | tidak             | tidak                  |
-| Kelola data master (jurusan, prodi, mata kuliah, semester) | ya              | tidak             | tidak                  |
-| Kelola KRS                                                 | tidak           | setujui KRS PA    | pilih kelas            |
-| Input nilai                                                | tidak           | kelas yang diajar | tidak                  |
-| Lihat transkrip dan IPK                                    | semua mahasiswa | semua mahasiswa   | hanya miliknya sendiri |
+Pembatasan akses diterapkan di backend melalui <code>utils/permissions.py</code>, bukan hanya dengan menyembunyikan menu.
 
-Pembatasan "hanya miliknya sendiri" ditegakkan di lapisan backend, bukan hanya dengan menyembunyikan menu.
+## Struktur aplikasi
 
-## Catatan Keamanan
-
-Password admin dan dosen disimpan sebagai hash bcrypt pada tabel `users`. Mahasiswa masuk dengan nama lengkap dan NIM. Mahasiswa hanya dapat melihat transkrip miliknya; nilai hanya dapat difinalisasi oleh dosen yang mengajar kelas terkait.
-
-## Desain Database
-
-Database `siakad` terdiri dari tabel akademik yang saling terhubung dengan foreign key dan dinormalisasi hingga **3NF**.
-
-| Tabel               | Fungsi                                               |
-| ------------------- | ---------------------------------------------------- |
-| `jurusan`           | Data jurusan                                         |
-| `program_studi`     | Program studi, berada di bawah satu jurusan          |
-| `mahasiswa`         | Biodata mahasiswa; **NIM adalah primary key**        |
-| `admin`             | Akun admin (username dan hash password)              |
-| `mata_kuliah`       | Kode, nama, dan SKS                                  |
-| `semester_akademik` | Daftar semester                                      |
-| `skala_nilai`       | Huruf mutu, bobot mutu, dan rentang nilai            |
-| `nilai`             | Nilai per mahasiswa (NIM), mata kuliah, dan semester |
-
-### ERD
-
-Keterangan: `PK` primary key, `FK` foreign key, `UK` unique. Teks dalam tanda kutip adalah constraint atau aturan pada kolom tersebut.
-
-```mermaid
-erDiagram
-    jurusan ||--o{ program_studi : "menaungi"
-    program_studi ||--o{ mahasiswa : "memiliki"
-    mahasiswa ||--o{ nilai : "memperoleh"
-    mata_kuliah ||--o{ nilai : "dinilai dalam"
-    semester_akademik ||--o{ nilai : "periode"
-    skala_nilai ||..o{ nilai : "konversi lewat rentang nilai"
-
-    jurusan {
-        int jurusan_id PK "AUTO_INCREMENT"
-        varchar kode_jurusan UK "NOT NULL"
-        varchar nama_jurusan "NOT NULL"
-    }
-    program_studi {
-        int prodi_id PK "AUTO_INCREMENT"
-        int jurusan_id FK "NOT NULL"
-        varchar kode_prodi UK "NOT NULL"
-        varchar nama_prodi "NOT NULL"
-        enum jenjang "D3, D4, S1, S2, S3"
-    }
-    mahasiswa {
-        varchar nim PK "identitas dan pengganti password"
-        int prodi_id FK "NOT NULL"
-        varchar nama_lengkap "NOT NULL"
-        enum jenis_kelamin "boleh NULL"
-        date tanggal_lahir "boleh NULL"
-        smallint angkatan "boleh NULL, CHECK 1990 sampai 2100"
-        enum status_mahasiswa "default Aktif"
-        datetime terdaftar_pada "default sekarang"
-    }
-    admin {
-        int admin_id PK "AUTO_INCREMENT"
-        varchar username UK "NOT NULL"
-        varchar password_hash "hash bcrypt"
-        boolean is_active "default TRUE"
-        datetime last_login_at "boleh NULL"
-        datetime created_at "default sekarang"
-    }
-    mata_kuliah {
-        int mk_id PK "AUTO_INCREMENT"
-        varchar kode_mk UK "NOT NULL"
-        varchar nama_mk "NOT NULL"
-        tinyint sks "CHECK 1 sampai 6"
-    }
-    semester_akademik {
-        int semester_id PK "AUTO_INCREMENT"
-        char kode_semester UK "contoh 20251"
-        varchar tahun_akademik "contoh 2025/2026"
-        enum jenis "Ganjil, Genap, Pendek"
-    }
-    skala_nilai {
-        smallint skala_id PK "AUTO_INCREMENT"
-        char huruf_mutu UK "A sampai E"
-        decimal bobot_mutu "CHECK 0 sampai 4"
-        decimal nilai_min "CHECK 0 sampai 100"
-        decimal nilai_max "CHECK min kurang dari max"
-        boolean is_lulus "NOT NULL"
-    }
-    nilai {
-        int nilai_id PK "AUTO_INCREMENT"
-        varchar nim FK "UNIQUE gabungan, ON UPDATE CASCADE"
-        int mk_id FK "UNIQUE gabungan"
-        int semester_id FK "UNIQUE gabungan"
-        decimal nilai_tugas "CHECK 0 sampai 100"
-        decimal nilai_uts "CHECK 0 sampai 100"
-        decimal nilai_uas "CHECK 0 sampai 100"
-        decimal nilai_akhir "turunan 30, 30, 40"
-    }
+```text
+AcademicManagementSystem/
+├── main.py                         # Menjalankan aplikasi
+├── config.py                       # Membaca pengaturan database dari .env
+├── .env.example                    # Contoh konfigurasi lokal
+├── .env                            # Konfigurasi lokal; jangan di-commit
+├── .gitignore                      # Mengecualikan file rahasia dan cache dari Git
+├── requirements.txt                # Daftar library Python
+├── assets/
+│   └── colors.py                   # Warna dan tema tampilan
+├── backend/
+│   ├── auth.py                     # Login dan pendaftaran
+│   ├── dashboard.py                # Ringkasan statistik beranda
+│   ├── dosen.py                    # Data dan akun dosen
+│   ├── ipk.py                      # Data transkrip, IPS, dan IPK
+│   ├── jurusan.py                  # Data jurusan
+│   ├── kelas.py                    # Data kelas kuliah
+│   ├── krs.py                      # Pengajuan dan persetujuan KRS
+│   ├── mahasiswa.py                # Data mahasiswa
+│   ├── mata_kuliah.py              # Data mata kuliah
+│   ├── nilai.py                    # Input dan pembacaan nilai
+│   ├── prodi.py                    # Data program studi
+│   ├── semester.py                 # Data semester akademik
+│   └── skala_nilai.py              # Rentang nilai dan bobot mutu
+├── database/
+│   ├── connection.py               # Membuka koneksi dan menjalankan query MySQL
+│   ├── create_admin.py             # Membuat akun admin pertama
+│   ├── schema.sql                  # Skema lama; berbahaya untuk database aktif
+│   ├── seed.sql                    # Data contoh dan data referensi
+│   ├── seed_jurusan_prodi.sql      # Data jurusan dan program studi kampus
+│   ├── triggers_views.sql          # Membuat view transkrip, IPS, dan IPK
+│   ├── migrate_fakultas_to_jurusan.sql
+│   │                                # Migrasi struktur fakultas lama ke jurusan
+│   └── migrate_student_public_registration.sql
+│                                    # Mengubah kolom untuk pendaftaran mahasiswa
+├── frontend/
+│   ├── main_window.py              # Jendela utama dan navigasi aplikasi
+│   ├── login_page.py               # Login dan formulir pendaftaran mahasiswa
+│   ├── akademik_master_page.py     # Tampilan data master akademik
+│   ├── mahasiswa_page.py           # Tampilan dan pengelolaan mahasiswa
+│   ├── dosen_page.py               # Tampilan dan pengelolaan dosen
+│   ├── kelas_page.py               # Tampilan dan pengelolaan kelas
+│   ├── krs_page.py                 # Tampilan KRS mahasiswa dan dosen
+│   ├── nilai_page.py               # Tampilan input nilai
+│   └── transkrip_page.py           # Tampilan transkrip dan IPK
+├── utils/
+│   ├── permissions.py              # Mengatur hak akses berdasarkan role
+│   ├── security.py                 # Hash dan pemeriksaan password
+│   ├── session.py                  # Menyimpan sesi pengguna yang login
+│   └── validators.py               # Memeriksa format dan nilai input
+├── docs/
+│   └── erd_ipk.png                 # Gambar diagram database
+└── README.md                       # Panduan proyek
 ```
 
-Cara membaca relasi: `||` tepat satu, `o|` nol atau satu, `o{` nol atau banyak. Garis putus-putus berarti relasi logis tanpa foreign key. Tabel `admin` berdiri sendiri karena admin tidak terkait dengan data mahasiswa. Versi gambar tersedia di [docs/erd_ipk.png](docs/erd_ipk.png).
+Folder <code>**pycache**/</code> dibuat otomatis oleh Python dan tidak perlu di-commit.
 
-### Aturan dan constraint
+## Database
 
-| Aturan                                                                                 | Cara penerapan                                    |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| NIM adalah identitas unik mahasiswa                                                    | `PRIMARY KEY (nim)` pada `mahasiswa`              |
-| Mengganti NIM otomatis memindahkan nilainya                                            | `FOREIGN KEY ... ON UPDATE CASCADE` pada `nilai`  |
-| Satu mahasiswa hanya punya satu nilai per mata kuliah per semester                     | `UNIQUE (nim, mk_id, semester_id)` pada `nilai`   |
-| Nilai tugas, UTS, UAS harus 0 sampai 100                                               | `CHECK` pada `nilai`                              |
-| Nilai akhir selalu konsisten dengan komponennya                                        | _generated column_: tugas 30% + UTS 30% + UAS 40% |
-| Kode jurusan, prodi, mata kuliah, dan semester serta username admin tidak boleh kembar | `UNIQUE`                                          |
-| SKS antara 1 dan 6                                                                     | `CHECK` pada `mata_kuliah`                        |
-| Nilai baru hanya untuk mahasiswa berstatus Aktif                                       | trigger `trg_nilai_cek_status_bi`                 |
-| Mahasiswa berstatus DO atau Keluar tidak dapat login                                   | validasi di `backend/auth.py`                     |
-| IPS, IPK, dan transkrip dihitung tanpa menyimpan data ganda                            | `VIEW`: `v_ips`, `v_ipk`, `v_transkrip`           |
+Backend saat ini menggunakan skema akademik yang mencakup <code>users</code>, <code>roles</code>, <code>mahasiswa</code>, <code>dosen</code>, <code>jurusan</code>, <code>program_studi</code>, <code>kurikulum</code>, <code>mata_kuliah</code>, <code>semester_akademik</code>, <code>kelas</code>, <code>kelas_dosen</code>, <code>krs</code>, <code>krs_detail</code>, <code>nilai_akhir</code>, dan tabel pendukung lainnya.
 
-### Catatan desain
+> **Peringatan:** <code>database/schema.sql</code> yang ada di repository masih merupakan skema prototipe lama. File itu menjalankan <code>DROP DATABASE IF EXISTS siakad</code> dan membuat hanya delapan tabel yang tidak sesuai dengan kebutuhan backend saat ini. Menjalankannya akan menghapus database <code>siakad</code> beserta isinya. Jangan jalankan file tersebut pada database aktif.
 
-- `nilai_akhir` adalah kolom turunan yang dihitung database dari nilai tugas, UTS, dan UAS.
-- Huruf mutu **tidak** disimpan di tabel `nilai`, karena akan menimbulkan ketergantungan transitif (`nilai_akhir` menentukan huruf mutu). Huruf mutu diperoleh saat query dengan mencocokkan `nilai_akhir` ke rentang di `skala_nilai`.
-- Jurusan **tidak** disimpan di tabel `mahasiswa`, karena dapat diturunkan dari program studi (`mahasiswa` ke `program_studi` ke `jurusan`).
-- IPS dan IPK dihitung melalui VIEW, tidak disimpan sebagai data tersendiri.
+File <code>seed.sql</code> dan <code>triggers_views.sql</code> juga mengacu pada skema akademik yang lebih lengkap, sehingga belum dapat dipakai sebagai proses instalasi baru bersama <code>schema.sql</code> yang sekarang. Setup database dari nol belum terdokumentasi secara lengkap; skema utama perlu diselaraskan terlebih dahulu.
 
-### Struktur Project
+### File migrasi dan seed
 
-AcademicManagementSystem/
-│
-├── main.py
-├── config.py
-├── requirements.txt
-├── .env.example
-│
-├── database/
-│ ├── connection.py
-│ ├── schema.sql
-│ ├── seed.sql
-│ ├── triggers_views.sql
-│ └── create_admin.py
-│
-├── backend/
-├── auth.py
-├── user.py
-├── jurusan.py
-├── prodi.py
-├── mahasiswa.py
-├── mata_kuliah.py
-├── semester.py
-├── skala_nilai.py
-├── nilai.py
-└── ipk.py
-│
-├── frontend/
-│ ├── main_window.py
-│ ├── login_page.py
-│ ├── mahasiswa_page.py
-│ ├── akademik_master_page.py
-│ ├── nilai_page.py
-│ └── transkrip_page.py
-│
-├── utils/
-│ ├── validators.py
-│ ├── security.py
-│ ├── session.py
-│ └── permissions.py
-│
-├── docs/
-│ └── erd_ipk.png
-│
-└── assets/
-├── colors.py
-└── ...
+File-file berikut mengubah database. Buat backup terlebih dahulu dan jalankan hanya jika kondisi awalnya sesuai:
 
-Lapisan `frontend/` tidak berisi SQL. Semua akses database dilakukan lewat `backend/`.
+- <code>database/migrate_fakultas_to_jurusan.sql</code>: migrasi satu kali untuk database lama yang memiliki tabel <code>fakultas</code> dan kolom <code>program_studi.fakultas_id</code>. Migrasi ini menghapus tabel lama <code>fakultas</code> setelah memindahkan datanya.
+- <code>database/migrate_student_public_registration.sql</code>: membuat kolom akun dan biodata tertentu menerima <code>NULL</code>, sesuai formulir pendaftaran mahasiswa publik. Jalankan satu kali pada skema yang memiliki tabel dan constraint yang disebut di dalam file.
+- <code>database/seed_jurusan_prodi.sql</code>: memasukkan data 10 jurusan dan 25 program studi kampus. Dapat dijalankan ulang berdasarkan kode jurusan/prodi.
+- <code>database/seed.sql</code>: data referensi dan contoh untuk skema penuh. Berisi data mahasiswa dan nilai contoh.
+- <code>database/triggers_views.sql</code>: membuat view <code>v_transkrip</code>, <code>v_ips</code>, dan <code>v_ipk</code>; memerlukan tabel KRS, kelas, dan nilai pada skema penuh.
 
-## Teknologi
+Jangan menjalankan ulang migrasi satu kali pada database yang sudah dimigrasikan. Pastikan database dan kondisi awal sesuai dengan komentar di setiap file.
 
-- Python 3.10+ dengan CustomTkinter untuk GUI
-- MySQL 8.0.16+ (diperlukan agar `CHECK` constraint ditegakkan)
-- Library lain: lihat `requirements.txt`
-- Disarankan memakai Laragon (menyediakan MySQL, HeidiSQL, dan phpMyAdmin)
+## Persiapan lingkungan
 
-## Instalasi
+Gunakan Python 3.10 atau lebih baru, MySQL 8.0+, serta Laragon jika bekerja di Windows. Tkinter/ttk disertakan pada instalasi Python Windows standar.
 
-1. **Clone repository**
+1.  Clone repository dan masuk ke folder proyek.
 
-   ```bash
-   git clone https://github.com/rhalstlyapp/AcademicManagementSystem.git
-   cd AcademicManagementSystem
-   ```
+    git clone https://github.com/rhalstlyapp/AcademicManagementSystem.git
+    cd AcademicManagementSystem
 
-2. **Buat virtual environment dan install dependensi**
+2.  Buat virtual environment dan pasang dependensi.
 
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate          # Windows
-   source venv/bin/activate       # macOS / Linux
-   pip install -r requirements.txt
-   ```
+    python -m venv .venv
+    .venv\Scripts\Activate.ps1
+    python -m pip install -r requirements.txt
 
-3. **Siapkan database**
+3.  Salin <code>.env.example</code> menjadi <code>.env</code>, lalu sesuaikan koneksi database lokal.
 
-   Pastikan MySQL sudah berjalan, lalu import berurutan (jalankan di Command Prompt):
+        Copy-Item .env.example .env
 
-   ```bash
-   mysql -u root < database\schema.sql
-   mysql -u root < database\seed.sql
-   mysql -u root < database\triggers_views.sql
-   ```
+    Untuk Laragon bawaan, umumnya <code>DB_HOST=localhost</code>, <code>DB_PORT=3306</code>, <code>DB_USER=root</code>, dan <code>DB_PASSWORD=</code> (kosong). Isi <code>DB_NAME=siakad</code>. Jangan commit <code>.env</code> ke Git.
 
-   `schema.sql` membuat tabel yang belum ada, tetapi tidak mengubah struktur tabel yang sudah ada. Pada database lama, jalankan migrasi berikut satu kali setelah backup:
+4.  Pastikan MySQL aktif dan database <code>siakad</code> sudah memakai skema lengkap yang sesuai dengan backend. **Jangan gunakan <code>database/schema.sql</code> saat ini untuk menyiapkan database**, karena file itu menghapus database dan membuat skema lama yang tidak kompatibel.
 
-   ```bash
-   mysql -u root siakad < database\migrate_student_public_registration.sql
-   ```
+5.  Setelah skema <code>users</code> dan <code>roles</code> tersedia, buat akun admin:
 
-   Operator `<` tidak didukung di PowerShell. Gunakan Command Prompt, atau perintah `source` di dalam prompt `mysql>`, atau fitur **Import** di phpMyAdmin / **Run SQL file** di HeidiSQL. Tambahkan `-p` setelah `-u root` jika MySQL kamu memakai password.
+        python database/create_admin.py
 
-4. **Konfigurasi environment**
+    Password diminta di terminal dan disimpan sebagai hash bcrypt.
 
-   ```bash
-   copy .env.example .env         # Windows
-   cp .env.example .env           # macOS / Linux
-   ```
+6.  Jalankan aplikasi dari folder proyek:
 
-   Isi `DB_USER`, `DB_PASSWORD`, dan nilai lainnya di file `.env`. Pada Laragon bawaan, `DB_USER=root` dan `DB_PASSWORD` dibiarkan kosong.
+    python main.py
 
-5. **Buat akun admin pertama**
+## Konfigurasi dan keamanan
 
-   ```bash
-   python database/create_admin.py
-   ```
+- <code>config.py</code> membaca konfigurasi lokal dari <code>.env</code>.
+- <code>.env</code> berisi rahasia dan dikecualikan oleh <code>.gitignore</code>; gunakan <code>.env.example</code> sebagai templat tanpa rahasia.
+- Password admin dan dosen disimpan sebagai hash bcrypt.
+- Mahasiswa login dengan nama lengkap dan NIM sesuai alur aplikasi saat ini.
+- Jangan menyimpan dump database atau file backup berisi data pribadi di repository.
 
-   Password diketik saat skrip berjalan dan tidak tampil di layar. Mahasiswa tidak memerlukan langkah ini: mereka mendaftar sendiri lewat tombol Daftar di halaman login.
+## Status proyek
 
-6. **Jalankan aplikasi**
-
-   ```bash
-   python main.py
-   ```
-
-   Data contoh yang bisa dipakai untuk mencoba login mahasiswa: nama `Budi Santoso` dengan NIM `2501001`.
-
-## Alur Pengembangan
-
-- Branch utama: `main`
-- Satu branch per fitur, misalnya `feature/nilai` atau `feature/ipk`
-- Pesan commit: `feat: ...`, `fix: ...`, `docs: ...`, `refactor: ...`
-
-## Status
-
-Dalam pengembangan.
+Proyek masih dalam pengembangan. Sebelum repository dapat dipasang dari database kosong, <code>database/schema.sql</code>, seed, view, dan dokumentasi setup perlu diselaraskan dengan skema yang dipakai backend.

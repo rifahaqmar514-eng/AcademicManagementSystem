@@ -53,10 +53,16 @@ def cek_id(nilai, label):
     return angka
 
 
+def nim_input_diizinkan(nilai):
+    """Izinkan input NIM kosong/sebagian saat mengetik, hanya angka maksimal 9 digit."""
+    teks = str(nilai)
+    return len(teks) <= 9 and (teks == "" or (teks.isascii() and teks.isdigit()))
+
+
 def cek_nim(nim):
     nim = cek_wajib(nim, "NIM")
-    if not re.fullmatch(r"[0-9A-Za-z]{5,15}", nim):
-        raise ValidationError("NIM harus 5-15 karakter berupa huruf atau angka.")
+    if not re.fullmatch(r"[0-9]{9}", nim):
+        raise ValidationError("NIM harus tepat 9 digit angka.")
     return nim
 
 

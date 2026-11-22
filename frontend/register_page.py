@@ -6,7 +6,7 @@ import mysql.connector
 
 from assets.colors import BG_COLOR, CARD_BG, PRIMARY_COLOR, TEXT_DARK
 from backend import auth
-from utils.validators import AppError
+from utils.validators import AppError, nim_input_diizinkan
 
 
 def tampilkan_registrasi(root):
@@ -72,11 +72,14 @@ def tampilkan_registrasi(root):
         )
         tk.Label(field, text=label, bg=CARD_BG, fg=TEXT_DARK).pack(anchor="w")
         widget = ttk.Entry(field, show="*" if password else "")
+        if key == "nim":
+            validasi = (widget.register(nim_input_diizinkan), "%P")
+            widget.configure(validate="key", validatecommand=validasi)
         widget.pack(fill="x", pady=(3, 0))
         entries[key] = widget
         return widget
 
-    entry_field("nim", "NIM", 0, 0)
+    entry_field("nim", "NIM (9 digit)", 0, 0)
     entry_field("nama", "Nama lengkap", 0, 1)
     entry_field("email", "Email", 1, 0)
     entry_field("angkatan", "Angkatan (contoh: 2026)", 1, 1)

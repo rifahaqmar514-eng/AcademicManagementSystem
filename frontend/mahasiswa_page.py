@@ -7,7 +7,7 @@ import mysql.connector
 from assets.colors import BG_COLOR, TEXT_DARK
 from backend import auth, mahasiswa
 from utils import session
-from utils.validators import AppError
+from utils.validators import AppError, nim_input_diizinkan
 
 
 def tampilkan_mahasiswa(parent):
@@ -125,11 +125,14 @@ def tampilkan_mahasiswa(parent):
             nonlocal row_index
             ttk.Label(form, text=label).grid(row=row_index, column=0, sticky="w", padx=(0, 12), pady=5)
             value = ttk.Entry(form, width=34, show="*" if secret else "")
+            if key == "nim":
+                validasi = (value.register(nim_input_diizinkan), "%P")
+                value.configure(validate="key", validatecommand=validasi)
             value.grid(row=row_index, column=1, sticky="ew", pady=5)
             entries[key] = value
             row_index += 1
 
-        entry("NIM / Username", "nim")
+        entry("NIM / Username (9 digit)", "nim")
         entry("Nama lengkap", "nama")
         entry("Email", "email")
         entry("Password", "password", secret=True)
