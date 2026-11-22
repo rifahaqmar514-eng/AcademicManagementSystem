@@ -4,33 +4,52 @@ from tkinter import messagebox, ttk
 
 import mysql.connector
 
-from assets.colors import BG_COLOR, TEXT_DARK
+from assets import colors as c
 from backend import jurusan, mata_kuliah, prodi, semester, skala_nilai
 
 
 def _tab(notebook, title, rows, fields):
-    frame = ttk.Frame(notebook, padding=8)
+    frame = ttk.Frame(notebook, padding=12)
     notebook.add(frame, text=title)
     cols = [key for key, _label, _width in fields]
     table = ttk.Treeview(frame, columns=cols, show="headings")
     for key, label, width in fields:
         table.heading(key, text=label)
-        table.column(key, width=width, anchor="w")
-    for row in rows:
-        table.insert("", "end", values=tuple(row.get(key, "") for key in cols))
-    table.pack(fill="both", expand=True)
+        table.column(key, width=width, anchor="w", stretch=True)
+    table.tag_configure("genap", background="#F6F1EA")
+    for index, row in enumerate(rows):
+        table.insert(
+            "", "end", values=tuple(row.get(key, "") for key in cols),
+            tags=("genap" if index % 2 else "ganjil",),
+        )
+
+    scroll_y = ttk.Scrollbar(frame, orient="vertical", command=table.yview)
+    scroll_x = ttk.Scrollbar(frame, orient="horizontal", command=table.xview)
+    table.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+    table.grid(row=0, column=0, sticky="nsew")
+    scroll_y.grid(row=0, column=1, sticky="ns")
+    scroll_x.grid(row=1, column=0, sticky="ew")
+    frame.rowconfigure(0, weight=1)
+    frame.columnconfigure(0, weight=1)
+
+    ttk.Label(
+        frame, text=f"{len(rows)} data", foreground=c.TEXT_MUTED,
+    ).grid(row=2, column=0, sticky="w", pady=(8, 0))
 
 
 def tampilkan_master(parent):
     for widget in parent.winfo_children():
         widget.destroy()
+    header = tk.Frame(parent, bg=c.BG_COLOR)
+    header.pack(fill="x", pady=(0, 16))
     tk.Label(
-        parent,
-        text="Master Akademik",
-        font=("Segoe UI", 20, "bold"),
-        bg=BG_COLOR,
-        fg=TEXT_DARK,
-    ).pack(anchor="w", pady=(0, 12))
+        header, text="Master Akademik", font=c.FONT_TITLE,
+        bg=c.BG_COLOR, fg=c.TEXT_DARK,
+    ).pack(anchor="w")
+    tk.Label(
+        header, text="Referensi jurusan, program studi, semester, dan penilaian.",
+        font=c.FONT_BODY, bg=c.BG_COLOR, fg=c.TEXT_MUTED,
+    ).pack(anchor="w", pady=(4, 0))
     try:
         daftar_jurusan = jurusan.daftar_jurusan()
         program_studi = prodi.daftar_prodi()
